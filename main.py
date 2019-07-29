@@ -1,8 +1,8 @@
 import pygame
 import struct
 import sys
-from time import sleep
 import pprint
+import random
 pp = pprint.PrettyPrinter(indent=0).pprint
 RTS = 0x00EE
 JUMP = 0x1000
@@ -24,6 +24,17 @@ SKRNE = 0x9000
 LOADI = 0xA000
 DRAW = 0xD000
 BCD = 0xF033
+LOADD = 0xF015
+STOR = 0xF055
+READ = 0xF065
+LDSPR = 0xF029
+MOVED = 0xF007
+RAND = 0xC000
+SKUP = 0xE0A1
+
+ZERO_INSTRUCTIONS = 0x0000
+EIGHT_INSTRUCTIONS = 0x8000
+F_INSTRUCTIONS = 0xF000
 
 chip8_fontset = [
     0xF0, 0x90, 0x90, 0x90, 0xF0,
@@ -44,7 +55,6 @@ chip8_fontset = [
     0xF0, 0x80, 0xF0, 0x80, 0x80
 ]
 
-# How to get an x,y coordinate in a flat representation of a matrix
 
 
 def get_index(x, y, height):
@@ -90,8 +100,6 @@ class Screen():
         self.diff(diff)
 
     def draw_screen(self, sprite, x, y):
-        # print(self.pixels)
-        did_update = 0
         for row, row_data in enumerate(sprite):
             for column, data in enumerate(row_data):
                 current_pixel = self.pixels[row + x][column + y]
@@ -142,13 +150,12 @@ class Chip8():
     def emulateCycle(self):
         self.fetchOpcode()
         self.decodeOpcode()
-        # self.executeOpcode()
         self.updateTimers()
 
     def setKeys(self):
         pass
 
-    def stack_insert(self, in_data):
+    def stack_put(self, in_data):
         self.stack[self.sp] = in_data
         self.sp += 1
 
@@ -162,105 +169,205 @@ class Chip8():
     def handle_CLR(self):
         self.screen.clear_screen()
 
-    def decodeOpcode(self):
+    def handle_load(self):
+        x = self.opCode >> 8 & 0x0F
+        y = self.opCode & 0x00FF
+        self.V[x] == y
 
-        operation = self.opCode & 0xF000
+    def handle_draw(self):
+        x = self.opCode >> 8 & 0x0F
+        y = self.opCode >> 4 & 0x00F
+        n = self.opCode & 0x000F
+        sprite = []
+        for i in range(n):
+            sprite.append(self.memory[self.I + i])
+        self.screen.draw_sprite(x, y, sprite)
+        self.drawFlag = self.screen.did_update
 
-        if operation == LOAD:
-            x = self.opCode >> 8 & 0x0F
-            y = self.opCode & 0x00FF
-            self.V[x] == y
-        elif operation == 0x0000:
-            if self.opCode == RTS:
-                self.pc = self.stack_get()
-        elif operation == 0x8000:
-            x = self.opCode >> 8 & 0x0F
-            y = self.opCode >> 4 & 0x00F
-            operation = self.opCode & 0xF00F
-            if operation == MOVE:
-                self.V[x] = self.V[y]
-            elif operation == OR:
-                self.V[x] = self.V[x] | self.V[x]
-            elif operation == AND:
-                self.V[x] = self.V[x] & self.V[y]
-            elif operation == XOR:
-                self.V[x] = self.V[x] ^ self.V[y]
-            elif operation == ADDR:
-                working = self.V[x] + self.V[y]
-                if working > 256:
-                    self.V[15] = 1
-                    working -= 256
-                else:
-                    self.V[15] = 0
-                self.V[x] = working
-            elif operation == SUB:
-                pass
-            else:
-                print(f"{hex(self.opCode)} not implemented.")
-        elif operation == DRAW:
-            x = self.opCode >> 8 & 0x0F
-            y = self.opCode >> 12 & 0x00F
-            n = self.opCode & 0x000F
-            sprite = []
-            for i in range(n):
-                sprite.append(self.memory[self.I + i])
-            self.screen.draw_sprite(x, y, sprite)
-            self.drawFlag = self.screen.did_update
-            # print(f"X: {x}, Y:{y}, N: {n}\nSprite: {sprite}")
-        elif operation == LOADI:
-            self.I = self.opCode & 0x0FFF
-        elif operation == CALL:
-            x = self.opCode & 0x0FFF
-            self.stack_insert(self.pc)
-            self.pc = x
-        elif operation == JUMP:
-            self.pc = self.opCode & 0x0FFF
-        elif operation == SKE:
-            s = self.opCode >> 8 & 0x0F
-            nn = self.opCode & 0x00FF
-            if s == nn:
-                self.pc += 2
-        elif operation == SKNE:
-            s = self.opCode >> 8 & 0x0F
-            nn = self.opCode & 0x00FF
-            if s != nn:
-                self.pc += 2
-        elif operation == SKRE:
-            x = self.opCode >> 8 & 0x0F
-            y = self.opCode >> 4 & 0x00F
-            if self.V[x] == self.V[y]:
-                self.pc += 2
-        elif operation == ADD:
-            x = self.opCode >> 8 & 0x0F
-            nn = self.opCode & 0x00FF
-            self.V[x] += nn
-        elif operation == SKRNE:
-            x = self.opCode >> 8 & 0x0F
-            y = self.opCode >> 4 & 0x00F
-            if self.V[x] != self.V[y]:
-                self.pc += 2
-        elif operation == 0xF000:
-            operation = self.opCode & 0xF0FF
-            x = self.opCode & 0x0F00 >> 8
-            if operation == BCD:
-                # Might be broken
-                num = int(self.V[x])
-                nums = []
-                while num != 0:
-                    nums.append(num % 10)
-                    num = num // 10
-                nums = list(reversed(nums))
-                for index, value in enumerate(nums):
-                    self.memory[self.I + index] = nums[i]
-            else:
-                print(f"{hex(self.opCode)} not implemented.")
 
+    def handle_loadi(self):
+        self.I = self.opCode & 0x0FFF
+
+    def handle_call(self):
+        x = self.opCode & 0x0FFF
+        self.stack_put(self.pc)
+        self.pc = x
+
+    def handle_jump(self):
+        self.stack_put(self.pc)
+        self.pc = self.opCode & 0x0FFF
+
+    def handle_ske(self):
+        x = self.opCode >> 8 & 0x0F
+        y = self.opCode & 0x00FF
+        if self.V[x] == y:
+            self.pc += 2
+
+    def handle_skne(self):
+        x = self.opCode >> 8 & 0x0F
+        y = self.opCode & 0x00FF
+        if self.V[x] != y:
+            self.pc += 2
+
+    def handle_skre(self):
+        x = self.opCode >> 8 & 0x0F
+        y = self.opCode >> 4 & 0x00F
+        if self.V[x] == self.V[y]:
+            self.pc += 2
+
+    def handle_add(self):
+        x = self.opCode >> 8 & 0x0F
+        y = self.opCode & 0x00FF
+        self.V[x] += y
+
+    def handle_skrne(self):
+        x = self.opCode >> 8 & 0x0F
+        y = self.opCode >> 4 & 0x00F
+        if self.V[x] != self.V[y]:
+            self.pc += 2
+
+    def handle_move(self, x, y):
+        self.V[y] = self.V[x]
+
+    def handle_or(self, x, y):
+        self.V[y] |= self.V[x]
+
+    def handle_and(self, x, y):
+        self.V[y] &= self.V[x]
+
+    def handle_xor(self, x, y):
+        self.V[y] ^= self.V[x]
+
+    def handle_addr(self, x, y):
+        working = self.V[x] + self.V[y]
+        if working > 255:
+            self.V[15] = 1
+            working -= 255
         else:
-            print(f"{hex(self.opCode)} not implemented.")
-            # sys.exit()
-        self.pc += 2
+            self.V[15] = 0
+        self.V[x] = working
 
-    def executeOpcode(self, operation):
+    def handle_sub(self, x, y):
+        temp = self.V[y] - self.V[x]
+        if (temp >= -1):
+            self.V[15] = 0
+        else:
+            self.V[15] = 1    
+        self.V[x] = temp
+
+    def handle_shl(self, x, y):
+        self.V[15] = self.V[x] & 0b10000000
+        self.V[x] = self.V[x] << 1
+
+    def handle_shr(self, x, y):
+        self.V[15] = self.V[x] & 0b10000000
+        self.V[x] = self.V[x] >> 1
+    
+    def handle_bcd(self, x):
+        # TODO Might be broken
+        print("bcd")
+        num = self.V[x]
+        nums = []
+        while num != 0:
+            if num % 10 > 0:
+                nums.append(num % 10)
+            else:
+                num //= 10
+                nums.append(num)
+        if len(nums) < 1:
+            nums.append(0)
+        for index, item in enumerate(nums):
+            self.memory[self.I + index] = item
+
+    def handle_loadd(self, x):
+        self.delay_timer = self.V[x]
+
+    def handle_stor(self, x):
+        for i in range(x + 1):
+            self.memory[self.I + i] = self.V[i]
+
+    def handle_read(self, x):
+        for i in range(x + 1):
+            self.V[i] = self.V[i] = self.memory[self.I + i]
+    
+    def handle_ldspr(self, x):
+        working = 5 * x
+        self.I = 0x50 + working
+
+    def handle_moved(self, x):
+        self.V[x] = self.delay_timer
+
+    def handle_rand(self):
+        x = self.opCode >> 8 & 0x0F
+        y = self.opCode & 0x00FF
+        self.V[x] = random.randint(0, y)
+
+    def handle_zero(self):
+        if self.opCode == RTS:
+            self.pc = self.stack_get()
+
+    def handle_eight(self):
+        x = self.opCode >> 8 & 0x0F
+        y = self.opCode >> 4 & 0x00F
+        operation = self.opCode & 0xF00F
+        op_map = {
+            MOVE: self.handle_move,
+            OR: self.handle_or,
+            AND: self.handle_and,
+            XOR: self.handle_xor,
+            ADDR: self.handle_addr,
+            SUB: self.handle_sub,
+            SHL: self.handle_shl,
+            SHR: self.handle_shr
+        }
+
+        try:
+            op_map[operation](x, y)
+        except:
+            print(f"{hex(self.opCode)} not implemented.")
+
+    def handle_f(self):
+        operation = self.opCode & 0xF0FF
+        x = self.opCode >> 8 & 0x0F
+        op_map = {
+            BCD: self.handle_bcd,
+            LOADD: self.handle_loadd,
+            STOR: self.handle_stor,
+            READ: self.handle_read,
+            LDSPR: self.handle_ldspr,
+            MOVED: self.handle_moved
+        }
+        try:
+            op_map[operation](x)
+        except:
+            print(f"{hex(self.opCode)} not implemented.")
+            
+
+    def decodeOpcode(self):
+        operation = self.opCode & 0xF000
+        # print(f"Op: {hex(self.opCode)}")
+        # print(f"{hex(self.opCode >> 12)}, {hex(self.opCode >> 8 & 0x0F)}, {hex(self.opCode >> 4 & 0x00F)}, {hex(self.opCode & 0x000F)}")
+        op_map = {
+            ZERO_INSTRUCTIONS: self.handle_zero,
+            EIGHT_INSTRUCTIONS: self.handle_eight,
+            F_INSTRUCTIONS: self.handle_f,
+            LOAD: self.handle_load,
+            DRAW: self.handle_draw,
+            LOADI: self.handle_loadi,
+            CALL: self.handle_call,
+            JUMP: self.handle_jump,
+            SKE: self.handle_ske,
+            SKNE: self.handle_skne,
+            SKRE: self.handle_skre,
+            ADD: self.handle_add,
+            SKRNE: self.handle_skrne,
+            RAND: self.handle_rand
+        }
+
+        try:
+            op_map[operation]()
+        except:
+            print(f"{hex(self.opCode)} not implemented.")
         self.pc += 2
 
     def updateTimers(self):
@@ -284,7 +391,7 @@ if __name__ == "__main__":
     clock = pygame.time.Clock()
     FPS = 60
     chip8 = Chip8()
-    chip8.loadGame("./testGames/TEST")
+    chip8.loadGame("./testGames/PONG")
     while True:
         clock.tick(FPS)
         chip8.emulateCycle()
