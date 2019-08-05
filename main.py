@@ -4,6 +4,8 @@ import sys
 import pprint
 import random
 pp = pprint.PrettyPrinter(indent=0).pprint
+SYS = 0x0000
+CLR = 0x00E0
 RTS = 0x00EE
 JUMP = 0x1000
 CALL = 0x2000
@@ -22,15 +24,20 @@ SHR = 0x8006
 SHL = 0x800E
 SKRNE = 0x9000
 LOADI = 0xA000
+JUMPI = 0xB000
+RAND = 0xC000
 DRAW = 0xD000
-BCD = 0xF033
+SKPR = 0xE09E
+SKUP = 0xE0A1
+MOVED = 0xF007
+KEYD = 0xF00A
 LOADD = 0xF015
+LOADS = 0xF018
+ADDI = 0XF01E
+LDSPR = 0xF029
+BCD = 0xF033
 STOR = 0xF055
 READ = 0xF065
-LDSPR = 0xF029
-MOVED = 0xF007
-RAND = 0xC000
-SKUP = 0xE0A1
 
 ZERO_INSTRUCTIONS = 0x0000
 EIGHT_INSTRUCTIONS = 0x8000
@@ -56,71 +63,63 @@ chip8_fontset = [
 ]
 
 
-
-def get_index(x, y, height):
-    return x * height + y
+def not_implemented(ins):
+    print(f"{ins}: Not Implemented")
 
 
 class Screen():
     def __init__(self):
-        self.BLACK = (0, 0, 0)
-        self.WHITE = (255, 255, 255)
-        self.pixels_width = 1280
-        self.pixels_height = 640
-        self.success, self.falures = pygame.init()
-        self.screen = pygame.display.set_mode(
-            (self.pixels_width, self.pixels_height))
-        self.num_width = 64
-        self.num_height = 32
-        self.pixel_height = self.pixels_height / self.num_height
-        self.pixel_width = self.pixels_width / self.num_width
-        self.pixels = [[0] * self.num_width] * self.num_height
+        self.DARK = (0, 0, 0, 255)
+        self.LIGHT = (255, 255, 255, 255)
+        self.display_w = 1280
+        self.display_h = 640
+        self.w = 64
+        self.h = 32
+        self.draw_screen = pygame.Surface((self.w, self.h))
+        self.display_screen = pygame.display.set_mode(
+            (self.display_w, self.display_h))
+        self.success, self.failure = pygame.init()
         self.did_update = False
 
     def clear_screen(self):
-        for x in self.num_width:
-            for y in self.num_height:
-                self.pixels[y][x] = 0
+        self.display_screen.draw.rect(
+            (0, 0, self.display_width, self.display_height))
+
+    def xor(self, x, y):
+        if x != y:
+            return True
+        return False
 
     def draw_sprite(self, x, y, sprite):
         bitmap = []
-        did_change = 0
+        self.did_update = False
+        # print(f"x: {x}, y: {y}")
         for line in sprite:
-            sprite_line = []
+            working = []
             for i in range(8):
-                sprite_line.append(line >> 7 - i & 0b1)
-            bitmap.append(sprite_line)
-        for row in range(len(bitmap)):
-            for column in range(8):
-                self.pixels[x + row][y + column] = bitmap[row][column] ^ self.pixels[x + row][y + column]
-        self.draw_screen(bitmap, x, y)
-        return did_change
+                working.append(line >> 7 - i & 0b1)
+            bitmap.append(working)
 
-    def update(self, diff):
-        self.diff(diff)
-
-    def draw_screen(self, sprite, x, y):
-        for row, row_data in enumerate(sprite):
-            for column, data in enumerate(row_data):
-                current_pixel = self.pixels[row + x][column + y]
-                self.did_update = False
-                if current_pixel ^ data != current_pixel:
+        for loop_y, row in enumerate(bitmap):
+            for loop_x, data in enumerate(bitmap[loop_y]):
+                if bitmap[loop_y][loop_x] == 0:
+                    color = self.DARK
+                else:
+                    color = self.LIGHT
+                if self.xor(self.draw_screen.get_at((x + loop_x, y + loop_y)), color):
                     self.did_update = True
-                    self.pixels[row + x][column + y] = data
-                    if data == 1:
-                        self.draw_pixel(row + x, column + y, self.WHITE)
-                    elif data == 0:
-                        self.draw_pixel(row + x, column + y, self.BLACK)
-        pygame.display.update()
+                    self.draw_screen.set_at((x + loop_x, y + loop_y), color)
+                # print(f"drew_x: {x + loop_x}, drew_y: {y + loop_y}")
 
-    def draw_pixel(self, x, y, color):
-        pygame.draw.rect(self.screen, color, (x * self.pixel_width,
-                                              y * self.pixel_height, self.pixel_width, self.pixel_height))
+    def update_display(self):
+        main_surface = pygame.display.get_surface()
+        main_surface.blit(pygame.transform.scale(
+            self.draw_screen, (self.display_w, self.display_h)), (0, 0))
+        pygame.display.update()
 
 
 class Chip8():
     def __init__(self):
-        self.drawFlag = True
         self.opCode = 0
         self.memory = [0] * 4096
         self.V = [0] * 16
@@ -129,8 +128,7 @@ class Chip8():
         self.gfx = [0] * 64 * 32
         self.delay_timer = 0
         self.sound_timer = 0
-        self.stack = [0] * 16
-        self.sp = 0
+        self.stack = []
         self.key = [0] * 16
         self.init_font()
         self.screen = Screen()
@@ -156,89 +154,111 @@ class Chip8():
         pass
 
     def stack_put(self, in_data):
-        self.stack[self.sp] = in_data
-        self.sp += 1
+        self.stack.append(in_data)
 
     def stack_get(self):
-        self.sp -= 1
-        return self.stack[self.sp]
+        return self.stack.pop()
 
     def fetchOpcode(self):
         self.opCode = self.memory[self.pc] << 8 | self.memory[self.pc + 1]
 
-    def handle_CLR(self):
+    def handle_sys(self):
+        not_implemented("SYS()")
+        # TODO Implement SYS call
+
+    def handle_clr(self):
+        print("CLR()")
         self.screen.clear_screen()
 
     def handle_load(self):
         x = self.opCode >> 8 & 0x0F
         y = self.opCode & 0x00FF
+        print(f"LOAD({x}, {y})")
         self.V[x] == y
 
     def handle_draw(self):
-        x = self.opCode >> 8 & 0x0F
-        y = self.opCode >> 4 & 0x00F
+        x = self.V[self.opCode >> 8 & 0x0F]
+        y = self.V[self.opCode >> 4 & 0x00F]
         n = self.opCode & 0x000F
+        print(f"DRAW({x}, {y}, {n})")
         sprite = []
         for i in range(n):
             sprite.append(self.memory[self.I + i])
         self.screen.draw_sprite(x, y, sprite)
-        self.drawFlag = self.screen.did_update
-
+        if self.screen.did_update:
+            self.V[15] = 1
+        else:
+            self.V[15] = 0
 
     def handle_loadi(self):
-        self.I = self.opCode & 0x0FFF
+        x = self.opCode & 0x0FFF
+        print(f"LOADI({x})")
+        self.I = x
 
     def handle_call(self):
         x = self.opCode & 0x0FFF
+        print(f"CALL({x})")
         self.stack_put(self.pc)
-        self.pc = x
+        self.pc = x - 2
 
     def handle_jump(self):
+        x = self.opCode & 0x0FFF
+        print(f"JUMP({x})")
         self.stack_put(self.pc)
-        self.pc = self.opCode & 0x0FFF
+        self.pc = x
 
     def handle_ske(self):
         x = self.opCode >> 8 & 0x0F
         y = self.opCode & 0x00FF
+        print(f"SKE({x}, {y})")
         if self.V[x] == y:
             self.pc += 2
 
     def handle_skne(self):
         x = self.opCode >> 8 & 0x0F
         y = self.opCode & 0x00FF
+        print(f"SKNE({x}, {y})")
         if self.V[x] != y:
             self.pc += 2
 
     def handle_skre(self):
         x = self.opCode >> 8 & 0x0F
         y = self.opCode >> 4 & 0x00F
+        print(f"SKRE({x}, {y})")
         if self.V[x] == self.V[y]:
             self.pc += 2
 
     def handle_add(self):
         x = self.opCode >> 8 & 0x0F
         y = self.opCode & 0x00FF
+        print(f"ADD({x}, {y})")
         self.V[x] += y
 
     def handle_skrne(self):
         x = self.opCode >> 8 & 0x0F
         y = self.opCode >> 4 & 0x00F
+        print(f"SKRNE({x}, {y})")
         if self.V[x] != self.V[y]:
             self.pc += 2
 
     def handle_move(self, x, y):
+        print(f"MOVE({x}, {y})")
         self.V[y] = self.V[x]
 
     def handle_or(self, x, y):
+        print(f"OR({x}, {y})")
         self.V[y] |= self.V[x]
 
     def handle_and(self, x, y):
+        print(f"ADD({x}, {y})")
         self.V[y] &= self.V[x]
 
     def handle_xor(self, x, y):
+        print(f"XOR({x}, {y})")
         self.V[y] ^= self.V[x]
 
     def handle_addr(self, x, y):
+        print(f"ADDR({x}, {y})")
         working = self.V[x] + self.V[y]
         if working > 255:
             self.V[15] = 1
@@ -248,24 +268,27 @@ class Chip8():
         self.V[x] = working
 
     def handle_sub(self, x, y):
+        print(f"SUB({x}, {y})")
         temp = self.V[y] - self.V[x]
         if (temp >= -1):
             self.V[15] = 0
         else:
-            self.V[15] = 1    
+            self.V[15] = 1
         self.V[x] = temp
 
     def handle_shl(self, x, y):
+        print(f"SHL({x}, {y})")
         self.V[15] = self.V[x] & 0b10000000
         self.V[x] = self.V[x] << 1
 
     def handle_shr(self, x, y):
+        print(f"SHR({x}, {y})")
         self.V[15] = self.V[x] & 0b10000000
         self.V[x] = self.V[x] >> 1
-    
+
     def handle_bcd(self, x):
+        print(f"BCD({x})")
         # TODO Might be broken
-        print("bcd")
         num = self.V[x]
         nums = []
         while num != 0:
@@ -280,26 +303,32 @@ class Chip8():
             self.memory[self.I + index] = item
 
     def handle_loadd(self, x):
+        print(f"LOADD({x})")
         self.delay_timer = self.V[x]
 
     def handle_stor(self, x):
+        print(f"STOR({x})")
         for i in range(x + 1):
             self.memory[self.I + i] = self.V[i]
 
     def handle_read(self, x):
+        print(f"READ({x})")
         for i in range(x + 1):
             self.V[i] = self.V[i] = self.memory[self.I + i]
-    
+
     def handle_ldspr(self, x):
+        print(f"LDSPR({x})")
         working = 5 * x
         self.I = 0x50 + working
 
     def handle_moved(self, x):
+        print(f"MOVED({x})")
         self.V[x] = self.delay_timer
 
     def handle_rand(self):
         x = self.opCode >> 8 & 0x0F
         y = self.opCode & 0x00FF
+        print(f"RAND({x}, {y})")
         self.V[x] = random.randint(0, y)
 
     def handle_zero(self):
@@ -320,11 +349,7 @@ class Chip8():
             SHL: self.handle_shl,
             SHR: self.handle_shr
         }
-
-        try:
-            op_map[operation](x, y)
-        except:
-            print(f"{hex(self.opCode)} not implemented.")
+        op_map[operation](x, y)
 
     def handle_f(self):
         operation = self.opCode & 0xF0FF
@@ -337,16 +362,10 @@ class Chip8():
             LDSPR: self.handle_ldspr,
             MOVED: self.handle_moved
         }
-        try:
-            op_map[operation](x)
-        except:
-            print(f"{hex(self.opCode)} not implemented.")
-            
+        op_map[operation](x)
 
     def decodeOpcode(self):
         operation = self.opCode & 0xF000
-        # print(f"Op: {hex(self.opCode)}")
-        # print(f"{hex(self.opCode >> 12)}, {hex(self.opCode >> 8 & 0x0F)}, {hex(self.opCode >> 4 & 0x00F)}, {hex(self.opCode & 0x000F)}")
         op_map = {
             ZERO_INSTRUCTIONS: self.handle_zero,
             EIGHT_INSTRUCTIONS: self.handle_eight,
@@ -377,8 +396,29 @@ class Chip8():
             self.sound_timer -= 1
 
 
-def setupInput():
-    pass
+def handle_input(event):
+    key_map = {
+        pygame.K_1: 0,
+        pygame.K_2: 1,
+        pygame.K_3: 2,
+        pygame.K_4: 3,
+        pygame.K_q: 4,
+        pygame.K_w: 5,
+        pygame.K_e: 6,
+        pygame.K_r: 7,
+        pygame.K_a: 8,
+        pygame.K_s: 9,
+        pygame.K_d: 10,
+        pygame.K_f: 11,
+        pygame.K_z: 12,
+        pygame.K_x: 13,
+        pygame.K_c: 14,
+        pygame.K_v: 15
+    }
+    try:
+        print(key_map[event.key])
+    except:
+        print("Not a registered key")
 
 
 def drawGraphics():
@@ -386,25 +426,19 @@ def drawGraphics():
 
 
 if __name__ == "__main__":
-    BLACK = (0, 0, 0)
-    WHITE = (255, 255, 255)
     clock = pygame.time.Clock()
-    FPS = 60
+    FPS = 10
     chip8 = Chip8()
     chip8.loadGame("./testGames/PONG")
     while True:
         clock.tick(FPS)
         chip8.emulateCycle()
-        if chip8.drawFlag:
-            drawGraphics()
+        if chip8.V[15]:
+            chip8.screen.update_display()
         chip8.setKeys()
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 quit()
             elif event.type == pygame.KEYDOWN:
-                print("test")
-    # while True:
-    #     chip8.emulateCycle()
-    #     if chip8.drawFlag:
-    #         drawGraphics()
-    #     chip8.setKeys()
+                handle_input(event)
+                # print(event.key)
