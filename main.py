@@ -272,6 +272,11 @@ class Chip8():
             self.V[0xF] = 0
         self.V[x] = temp
 
+    def handle_shr(self, x, y):
+        print(f"SHR({x}, {y})")
+        self.V[0xF] = self.V[x] & 0b00000001
+        self.V[x] >>= 1
+
     def handle_draw(self):
         x = self.V[self.opCode >> 8 & 0x0F]
         y = self.V[self.opCode >> 4 & 0x00F]
@@ -307,11 +312,6 @@ class Chip8():
         print(f"SHL({x}, {y})")
         self.V[15] = self.V[x] & 0b10000000
         self.V[x] = self.V[x] << 1
-
-    def handle_shr(self, x, y):
-        print(f"SHR({x}, {y})")
-        self.V[15] = self.V[x] & 0b10000000
-        self.V[x] = self.V[x] >> 1
 
     def handle_bcd(self, x):
         print(f"BCD({x})")
