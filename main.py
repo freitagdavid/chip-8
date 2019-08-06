@@ -248,6 +248,10 @@ class Chip8():
         print(f"ADD({x}, {y})")
         self.V[y] &= self.V[x]
 
+    def handle_xor(self, x, y):
+        print(f"XOR({x}, {y})")
+        self.V[y] ^= self.V[x]
+
     def handle_draw(self):
         x = self.V[self.opCode >> 8 & 0x0F]
         y = self.V[self.opCode >> 4 & 0x00F]
@@ -278,10 +282,6 @@ class Chip8():
         if self.V[x] != self.V[y]:
             self.pc += 2
 
-
-    def handle_xor(self, x, y):
-        print(f"XOR({x}, {y})")
-        self.V[y] ^= self.V[x]
 
     def handle_addr(self, x, y):
         print(f"ADDR({x}, {y})")
