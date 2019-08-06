@@ -165,7 +165,7 @@ class Chip8():
 
     def fetchOpcode(self):
         self.opCode = self.memory[self.pc] << 8 | self.memory[self.pc + 1]
-    
+
     def get_register(self, x):
         return self.V[x]
 
@@ -183,9 +183,10 @@ class Chip8():
 
     def handle_rts(self):
         # TODO Maybe working?
+        print(f"RTS()")
         self.pc = self.stack_get()
-        self.next_instruction()
-    
+        # self.next_instruction()
+
     def handle_jump(self):
         # TODO Maybe working?
         x = self.opCode & 0x0FFF
@@ -222,7 +223,6 @@ class Chip8():
 
     def handle_load(self):
         x = self.opCode >> 8 & 0x0F
-        print(self.get_sec_byte(self.opCode))
         y = self.get_sec_byte(self.opCode)
         print(f"LOAD({x}, {y})")
         self.V[x] = y
@@ -232,54 +232,47 @@ class Chip8():
         y = self.get_sec_byte(self.opCode)
         print(f"ADD({x}, {y})")
         out = self.V[x] + y
-        print(self.V[x], y)
-        print(out)
-        if out > 255:
-            self.V[x] = 255
-        else:
-            self.V[x] = out
-    
+        self.V[x] = out & 0b11111111
+
     def handle_move(self, x, y):
+        # TODO broken
         print(f"MOVE({x}, {y})")
-        self.V[y] = self.V[x]
-        self.V[x] = 0
+        self.V[x] = self.V[y]
+        # self.V[x] = 0
 
     def handle_or(self, x, y):
         print(f"OR({x}, {y})")
-        self.V[y] |= self.V[x]
+        self.V[x] |= self.V[y]
 
     def handle_and(self, x, y):
         print(f"ADD({x}, {y})")
-        self.V[y] &= self.V[x]
+        self.V[x] &= self.V[y]
 
     def handle_xor(self, x, y):
         print(f"XOR({x}, {y})")
-        self.V[y] ^= self.V[x]
+        self.V[x] ^= self.V[y]
 
     def handle_addr(self, x, y):
         print(f"ADDR({x}, {y})")
         working = self.V[x] + self.V[y]
+        self.V[0xF] = 0
         if working > 255:
             self.V[0xF] = 1
-            working = 255
-        else:
-            self.V[0xF] = 0
-        self.V[x] = working
+        self.V[x] = working & 0b11111111
 
     def handle_sub(self, x, y):
-        print(f"SUB({x}, {y})")
-        temp = self.V[y] - self.V[x]
-        if (temp <= -1):
-            self.V[0xF] = 1
-            temp = 0
-        else:
+        self.V[0xF] = 1
+        temp = self.V[x] - self.V[y]
+        if temp < 0:
             self.V[0xF] = 0
-        self.V[x] = temp
+            self.V[x] = 256 + temp
+        else:
+            self.V[x] = temp
 
     def handle_shr(self, x, y):
         print(f"SHR({x}, {y})")
-        self.V[0xF] = self.V[x] & 0b00000001
-        self.V[x] >>= 1
+        self.V[x] = self.V[y] >> 1
+        self.V[0xF] = self.V[y] & 0b00000001
 
     def handle_shl(self, x, y):
         print(f"SHL({x}, {y})")
@@ -309,8 +302,8 @@ class Chip8():
         print(f"RAND({x}, {y})")
         self.V[x] = random.randint(0, y)
     # Pretty sure this is working I still have a feeling it's the fraw_sprite method that's the problem
+
     def handle_draw(self):
-        print(self.opCode >> 8 & 0x0F)
         x = self.V[self.opCode >> 8 & 0x0F]
         y = self.V[self.opCode >> 4 & 0x00F]
         n = self.opCode & 0x000F
@@ -331,7 +324,7 @@ class Chip8():
     def handle_skup(self, x):
         # TODO still need to implement
         print("Haven't implemented keyboard handling yet")
-    
+
     def handle_moved(self, x):
         print(f"MOVED({x})")
         self.V[x] = self.delay_timer
@@ -498,7 +491,7 @@ def drawGraphics():
 
 if __name__ == "__main__":
     clock = pygame.time.Clock()
-    FPS = 10
+    FPS = 60
     chip8 = Chip8()
     chip8.loadGame("./testGames/TEST")
     while True:
