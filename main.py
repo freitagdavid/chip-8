@@ -222,19 +222,22 @@ class Chip8():
 
     def handle_load(self):
         x = self.opCode >> 8 & 0x0F
+        print(self.get_sec_byte(self.opCode))
         y = self.get_sec_byte(self.opCode)
         print(f"LOAD({x}, {y})")
-        self.V[x] == y
+        self.V[x] = y
 
     def handle_add(self):
         x = self.opCode >> 8 & 0x0F
         y = self.get_sec_byte(self.opCode)
         print(f"ADD({x}, {y})")
         out = self.V[x] + y
-        if out < 255:
-            self.V[x] = out
-        else:
+        print(self.V[x], y)
+        print(out)
+        if out > 255:
             self.V[x] = 255
+        else:
+            self.V[x] = out
     
     def handle_move(self, x, y):
         print(f"MOVE({x}, {y})")
@@ -307,6 +310,7 @@ class Chip8():
         self.V[x] = random.randint(0, y)
     # Pretty sure this is working I still have a feeling it's the fraw_sprite method that's the problem
     def handle_draw(self):
+        print(self.opCode >> 8 & 0x0F)
         x = self.V[self.opCode >> 8 & 0x0F]
         y = self.V[self.opCode >> 4 & 0x00F]
         n = self.opCode & 0x000F
@@ -496,7 +500,7 @@ if __name__ == "__main__":
     clock = pygame.time.Clock()
     FPS = 10
     chip8 = Chip8()
-    chip8.loadGame("./testGames/PONG")
+    chip8.loadGame("./testGames/TEST")
     while True:
         clock.tick(FPS)
         chip8.emulateCycle()
