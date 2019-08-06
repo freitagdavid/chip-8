@@ -332,6 +332,10 @@ class Chip8():
         print(f"MOVED({x})")
         self.V[x] = self.delay_timer
 
+    def handle_keyd(self, x):
+        # TODO still need to implement
+        print("Haven't implemented keyboard handling yet")
+
     def handle_bcd(self, x):
         print(f"BCD({x})")
         # TODO Might be broken
@@ -409,7 +413,8 @@ class Chip8():
             STOR: self.handle_stor,
             READ: self.handle_read,
             LDSPR: self.handle_ldspr,
-            MOVED: self.handle_moved
+            MOVED: self.handle_moved,
+            KEYD: self.handle_keyd
         }
         op_map[operation](x)
 
