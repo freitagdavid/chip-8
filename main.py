@@ -41,6 +41,7 @@ READ = 0xF065
 
 ZERO_INSTRUCTIONS = 0x0000
 EIGHT_INSTRUCTIONS = 0x8000
+E_INSTRUCTIONS = 0xE000
 F_INSTRUCTIONS = 0xF000
 
 chip8_fontset = [
@@ -319,6 +320,18 @@ class Chip8():
         else:
             self.V[0xF] = 0
 
+    def handle_skpr(self, x):
+        # TODO still need to implement
+        print("Haven't implemented keyboard handling yet")
+
+    def handle_skup(self, x):
+        # TODO still need to implement
+        print("Haven't implemented keyboard handling yet")
+    
+    def handle_moved(self, x):
+        print(f"MOVED({x})")
+        self.V[x] = self.delay_timer
+
     def handle_bcd(self, x):
         print(f"BCD({x})")
         # TODO Might be broken
@@ -354,10 +367,6 @@ class Chip8():
         working = 5 * x
         self.I = 0x50 + working
 
-    def handle_moved(self, x):
-        print(f"MOVED({x})")
-        self.V[x] = self.delay_timer
-
     def handle_zero(self):
         if self.opCode == CLR:
             self.handle_clr()
@@ -382,6 +391,15 @@ class Chip8():
         }
         op_map[operation](x, y)
 
+    def handle_e(self):
+        operation = self.opCode & 0xF0FF
+        x = self.opCode >> 8 & 0x0F
+        op_map = {
+            SKPR: self.handle_skpr,
+            SKUP: self.handle_skup
+        }
+        op_map[operation](x)
+
     def handle_f(self):
         operation = self.opCode & 0xF0FF
         x = self.opCode >> 8 & 0x0F
@@ -400,6 +418,7 @@ class Chip8():
         op_map = {
             ZERO_INSTRUCTIONS: self.handle_zero,
             EIGHT_INSTRUCTIONS: self.handle_eight,
+            E_INSTRUCTIONS: self.handle_e,
             F_INSTRUCTIONS: self.handle_f,
             LOAD: self.handle_load,
             DRAW: self.handle_draw,
