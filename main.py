@@ -225,6 +225,21 @@ class Chip8():
         print(f"LOAD({x}, {y})")
         self.V[x] == y
 
+    def handle_add(self):
+        x = self.opCode >> 8 & 0x0F
+        y = self.get_sec_byte(self.opCode)
+        print(f"ADD({x}, {y})")
+        out = self.V[x] + y
+        if out < 255:
+            self.V[x] = out
+        else:
+            self.V[x] = 255
+    
+    def handle_move(self, x, y):
+        print(f"MOVE({x}, {y})")
+        self.V[y] = self.V[x]
+        self.V[x] = 0
+
     def handle_draw(self):
         x = self.V[self.opCode >> 8 & 0x0F]
         y = self.V[self.opCode >> 4 & 0x00F]
@@ -247,11 +262,6 @@ class Chip8():
 
 
 
-    def handle_add(self):
-        x = self.opCode >> 8 & 0x0F
-        y = self.opCode & 0x00FF
-        print(f"ADD({x}, {y})")
-        self.V[x] += y
 
     def handle_skrne(self):
         x = self.opCode >> 8 & 0x0F
@@ -260,9 +270,6 @@ class Chip8():
         if self.V[x] != self.V[y]:
             self.pc += 2
 
-    def handle_move(self, x, y):
-        print(f"MOVE({x}, {y})")
-        self.V[y] = self.V[x]
 
     def handle_or(self, x, y):
         print(f"OR({x}, {y})")
