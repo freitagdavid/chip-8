@@ -345,6 +345,15 @@ class Chip8():
         print(f"LOADS({x})")
         self.sound_timer = self.V[x]
 
+    def handle_addi(self, x):
+        print(f"ADDI({x})")
+        self.I += self.V[x]
+
+    def handle_ldspr(self, x):
+        print(f"LDSPR({x})")
+        working = 5 * x
+        self.I = 0x50 + working
+
     def handle_bcd(self, x):
         print(f"BCD({x})")
         # TODO Might be broken
@@ -370,11 +379,6 @@ class Chip8():
         print(f"READ({x})")
         for i in range(x + 1):
             self.V[i] = self.V[i] = self.memory[self.I + i]
-
-    def handle_ldspr(self, x):
-        print(f"LDSPR({x})")
-        working = 5 * x
-        self.I = 0x50 + working
 
     def handle_zero(self):
         if self.opCode == CLR:
@@ -420,7 +424,8 @@ class Chip8():
             LDSPR: self.handle_ldspr,
             MOVED: self.handle_moved,
             KEYD: self.handle_keyd,
-            LOADS: self.handle_loads
+            LOADS: self.handle_loads,
+            ADDI: self.handle_addi
         }
         op_map[operation](x)
 
