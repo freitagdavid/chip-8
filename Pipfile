@@ -4,6 +4,14 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [dev-packages]
+pylint = "*"
+pylama = "*"
+prospector = "*"
+pydocstyle = "*"
+pep8 = "*"
+flake8 = "*"
+mypy = "*"
+bandit = "*"
 
 [packages]
 pygame = "*"
