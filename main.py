@@ -252,6 +252,16 @@ class Chip8():
         print(f"XOR({x}, {y})")
         self.V[y] ^= self.V[x]
 
+    def handle_addr(self, x, y):
+        print(f"ADDR({x}, {y})")
+        working = self.V[x] + self.V[y]
+        if working > 255:
+            self.V[0xF] = 1
+            working = 255
+        else:
+            self.V[0xF] = 0
+        self.V[x] = working
+
     def handle_draw(self):
         x = self.V[self.opCode >> 8 & 0x0F]
         y = self.V[self.opCode >> 4 & 0x00F]
@@ -282,16 +292,6 @@ class Chip8():
         if self.V[x] != self.V[y]:
             self.pc += 2
 
-
-    def handle_addr(self, x, y):
-        print(f"ADDR({x}, {y})")
-        working = self.V[x] + self.V[y]
-        if working > 255:
-            self.V[15] = 1
-            working -= 255
-        else:
-            self.V[15] = 0
-        self.V[x] = working
 
     def handle_sub(self, x, y):
         print(f"SUB({x}, {y})")
