@@ -294,6 +294,11 @@ class Chip8():
         print(f"LOADI({x})")
         self.I = x
 
+# Not sure if I need to do the subtraction or not?
+    def handle_jumpi(self):
+        x = self.opCode & 0x0FFF
+        self.pc = x + self.I - 2
+
     def handle_draw(self):
         x = self.V[self.opCode >> 8 & 0x0F]
         y = self.V[self.opCode >> 4 & 0x00F]
@@ -406,7 +411,8 @@ class Chip8():
             SKRE: self.handle_skre,
             ADD: self.handle_add,
             SKRNE: self.handle_skrne,
-            RAND: self.handle_rand
+            RAND: self.handle_rand,
+            JUMPI: self.handle_jumpi
         }
 
         try:
