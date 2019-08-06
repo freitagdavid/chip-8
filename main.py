@@ -299,6 +299,12 @@ class Chip8():
         x = self.opCode & 0x0FFF
         self.pc = x + self.I - 2
 
+    def handle_rand(self):
+        x = self.opCode >> 8 & 0x0F
+        y = self.opCode & 0x00FF
+        print(f"RAND({x}, {y})")
+        self.V[x] = random.randint(0, y)
+
     def handle_draw(self):
         x = self.V[self.opCode >> 8 & 0x0F]
         y = self.V[self.opCode >> 4 & 0x00F]
@@ -312,12 +318,6 @@ class Chip8():
             self.V[15] = 1
         else:
             self.V[15] = 0
-
-    def handle_rand(self):
-        x = self.opCode >> 8 & 0x0F
-        y = self.opCode & 0x00FF
-        print(f"RAND({x}, {y})")
-        self.V[x] = random.randint(0, y)
 
     def handle_bcd(self, x):
         print(f"BCD({x})")
