@@ -153,6 +153,9 @@ class Chip8():
     def setKeys(self):
         pass
 
+    def next_instruction(self):
+        self.pc += 2
+
     def stack_put(self, in_data):
         self.stack.append(in_data)
 
@@ -161,18 +164,64 @@ class Chip8():
 
     def fetchOpcode(self):
         self.opCode = self.memory[self.pc] << 8 | self.memory[self.pc + 1]
+    
+    def get_register(self, x):
+        return self.V[x]
+
+    def get_sec_byte(self, x):
+        return x & 0x00FF
 
     def handle_sys(self):
         not_implemented("SYS()")
         # TODO Implement SYS call
 
     def handle_clr(self):
+        # This should work hopefully
         print("CLR()")
         self.screen.clear_screen()
 
+    def handle_rts(self):
+        # TODO Maybe working?
+        self.pc = self.stack_get()
+        self.next_instruction()
+    
+    def handle_jump(self):
+        # TODO Maybe working?
+        x = self.opCode & 0x0FFF
+        print(f"JUMP({x})")
+        self.pc = x - 2
+
+    def handle_call(self):
+        # TODO Maybe working?
+        x = self.opCode & 0x0FFF
+        print(f"CALL({x})")
+        self.stack_put(self.pc)
+        self.pc = x - 2
+
+    def handle_ske(self):
+        x = self.opCode >> 8 & 0x0F
+        y = self.get_sec_byte(self.opCode)
+        print(f"SKE({x}, {y})")
+        if self.get_register(x) == y:
+            self.next_instruction()
+
+    def handle_skne(self):
+        x = self.opCode >> 8 & 0x0F
+        y = self.get_sec_byte(self.opCode)
+        print(f"SKNE({x}, {y})")
+        if self.get_register(x) != y:
+            self.pc += 2
+
+    def handle_skre(self):
+        x = self.opCode >> 8 & 0x0F
+        y = self.opCode >> 4 & 0x00F
+        print(f"SKRE({x}, {y})")
+        if self.V[x] == self.V[y]:
+            self.pc += 2
+
     def handle_load(self):
         x = self.opCode >> 8 & 0x0F
-        y = self.opCode & 0x00FF
+        y = self.get_sec_byte(self.opCode)
         print(f"LOAD({x}, {y})")
         self.V[x] == y
 
@@ -195,38 +244,8 @@ class Chip8():
         print(f"LOADI({x})")
         self.I = x
 
-    def handle_call(self):
-        x = self.opCode & 0x0FFF
-        print(f"CALL({x})")
-        self.stack_put(self.pc)
-        self.pc = x - 2
 
-    def handle_jump(self):
-        x = self.opCode & 0x0FFF
-        print(f"JUMP({x})")
-        self.stack_put(self.pc)
-        self.pc = x
 
-    def handle_ske(self):
-        x = self.opCode >> 8 & 0x0F
-        y = self.opCode & 0x00FF
-        print(f"SKE({x}, {y})")
-        if self.V[x] == y:
-            self.pc += 2
-
-    def handle_skne(self):
-        x = self.opCode >> 8 & 0x0F
-        y = self.opCode & 0x00FF
-        print(f"SKNE({x}, {y})")
-        if self.V[x] != y:
-            self.pc += 2
-
-    def handle_skre(self):
-        x = self.opCode >> 8 & 0x0F
-        y = self.opCode >> 4 & 0x00F
-        print(f"SKRE({x}, {y})")
-        if self.V[x] == self.V[y]:
-            self.pc += 2
 
     def handle_add(self):
         x = self.opCode >> 8 & 0x0F
@@ -332,8 +351,12 @@ class Chip8():
         self.V[x] = random.randint(0, y)
 
     def handle_zero(self):
-        if self.opCode == RTS:
-            self.pc = self.stack_get()
+        if self.opCode == CLR:
+            self.handle_clr()
+        elif self.opCode == RTS:
+            self.handle_rts()
+        else:
+            self.handle_sys()
 
     def handle_eight(self):
         x = self.opCode >> 8 & 0x0F
