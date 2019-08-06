@@ -313,6 +313,12 @@ class Chip8():
         else:
             self.V[15] = 0
 
+    def handle_rand(self):
+        x = self.opCode >> 8 & 0x0F
+        y = self.opCode & 0x00FF
+        print(f"RAND({x}, {y})")
+        self.V[x] = random.randint(0, y)
+
     def handle_bcd(self, x):
         print(f"BCD({x})")
         # TODO Might be broken
@@ -351,12 +357,6 @@ class Chip8():
     def handle_moved(self, x):
         print(f"MOVED({x})")
         self.V[x] = self.delay_timer
-
-    def handle_rand(self):
-        x = self.opCode >> 8 & 0x0F
-        y = self.opCode & 0x00FF
-        print(f"RAND({x}, {y})")
-        self.V[x] = random.randint(0, y)
 
     def handle_zero(self):
         if self.opCode == CLR:
