@@ -289,6 +289,11 @@ class Chip8():
         if self.V[x] != self.V[y]:
             self.pc += 2
 
+    def handle_loadi(self):
+        x = self.opCode & 0x0FFF
+        print(f"LOADI({x})")
+        self.I = x
+
     def handle_draw(self):
         x = self.V[self.opCode >> 8 & 0x0F]
         y = self.V[self.opCode >> 4 & 0x00F]
@@ -302,11 +307,6 @@ class Chip8():
             self.V[15] = 1
         else:
             self.V[15] = 0
-
-    def handle_loadi(self):
-        x = self.opCode & 0x0FFF
-        print(f"LOADI({x})")
-        self.I = x
 
     def handle_bcd(self, x):
         print(f"BCD({x})")
