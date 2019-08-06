@@ -262,6 +262,16 @@ class Chip8():
             self.V[0xF] = 0
         self.V[x] = working
 
+    def handle_sub(self, x, y):
+        print(f"SUB({x}, {y})")
+        temp = self.V[y] - self.V[x]
+        if (temp <= -1):
+            self.V[0xF] = 1
+            temp = 0
+        else:
+            self.V[0xF] = 0
+        self.V[x] = temp
+
     def handle_draw(self):
         x = self.V[self.opCode >> 8 & 0x0F]
         y = self.V[self.opCode >> 4 & 0x00F]
@@ -292,15 +302,6 @@ class Chip8():
         if self.V[x] != self.V[y]:
             self.pc += 2
 
-
-    def handle_sub(self, x, y):
-        print(f"SUB({x}, {y})")
-        temp = self.V[y] - self.V[x]
-        if (temp >= -1):
-            self.V[15] = 0
-        else:
-            self.V[15] = 1
-        self.V[x] = temp
 
     def handle_shl(self, x, y):
         print(f"SHL({x}, {y})")
