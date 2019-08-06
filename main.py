@@ -304,7 +304,7 @@ class Chip8():
         y = self.opCode & 0x00FF
         print(f"RAND({x}, {y})")
         self.V[x] = random.randint(0, y)
-
+    # Pretty sure this is working I still have a feeling it's the fraw_sprite method that's the problem
     def handle_draw(self):
         x = self.V[self.opCode >> 8 & 0x0F]
         y = self.V[self.opCode >> 4 & 0x00F]
@@ -315,9 +315,9 @@ class Chip8():
             sprite.append(self.memory[self.I + i])
         self.screen.draw_sprite(x, y, sprite)
         if self.screen.did_update:
-            self.V[15] = 1
+            self.V[0xF] = 1
         else:
-            self.V[15] = 0
+            self.V[0xF] = 0
 
     def handle_bcd(self, x):
         print(f"BCD({x})")
