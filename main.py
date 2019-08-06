@@ -336,6 +336,10 @@ class Chip8():
         # TODO still need to implement
         print("Haven't implemented keyboard handling yet")
 
+    def handle_loadd(self, x):
+        print(f"LOADD({x})")
+        self.delay_timer = self.V[x]
+
     def handle_bcd(self, x):
         print(f"BCD({x})")
         # TODO Might be broken
@@ -351,10 +355,6 @@ class Chip8():
             nums.append(0)
         for index, item in enumerate(nums):
             self.memory[self.I + index] = item
-
-    def handle_loadd(self, x):
-        print(f"LOADD({x})")
-        self.delay_timer = self.V[x]
 
     def handle_stor(self, x):
         print(f"STOR({x})")
