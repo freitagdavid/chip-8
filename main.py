@@ -333,12 +333,17 @@ class Chip8():
         self.V[x] = self.delay_timer
 
     def handle_keyd(self, x):
+        print(f"KEYD({x})")
         # TODO still need to implement
         print("Haven't implemented keyboard handling yet")
 
     def handle_loadd(self, x):
         print(f"LOADD({x})")
         self.delay_timer = self.V[x]
+
+    def handle_loads(self, x):
+        print(f"LOADS({x})")
+        self.sound_timer = self.V[x]
 
     def handle_bcd(self, x):
         print(f"BCD({x})")
@@ -414,7 +419,8 @@ class Chip8():
             READ: self.handle_read,
             LDSPR: self.handle_ldspr,
             MOVED: self.handle_moved,
-            KEYD: self.handle_keyd
+            KEYD: self.handle_keyd,
+            LOADS: self.handle_loads
         }
         op_map[operation](x)
 
